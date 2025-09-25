@@ -24,6 +24,11 @@ CONFIG = {
     
     # ---- VO trajectory rotation ----
     "VO_ROTATION_DEG": 5,  # User-defined rotation angle in degrees (0 = no rotation)
+    
+    # ---- Per-pose tilt compensation (absolute 0 ref) ----
+    "ENABLE_TILT_COMP": True,
+    "COMP_SIGN_ROLL_TO_E": +1.0,   # flip if needed
+    "COMP_SIGN_PITCH_TO_N": +1.0,  # flip if needed
 
     # ---- Processing size for VO ----
     "PROCESS_SCALE": 0.5,        # 0.4–0.6 is fast & accurate

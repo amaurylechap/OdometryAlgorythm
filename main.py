@@ -13,7 +13,7 @@ from visualization import (
     plot_vo_metric_no_imu, plot_vo_metric_with_imu
 )
 from csv_utils import load_frame_csv, load_imu_csv, en_to_latlon
-from imu_compensation import compensate_tilt, integrate_steps
+from imu_compensation import compensate_positions_absolute
 from config import CONFIG
 
 def main():
@@ -151,20 +151,46 @@ def main():
         ])
         pos_noimu_m = vo_rotated
 
-    # ---- 9) VO with IMU tilt compensation (altitude · tan()) ----
-    pos_withimu_m = None
-    if len(pairs) >= 1:
-        dpx = np.array([[row[2], row[3]] for row in pairs], dtype=np.float32)
-        dE = dpx[:, 0] * sx
-        dN = dpx[:, 1] * sy
+    # ---- 9) VO per-pose tilt compensation (absolute 0 reference) ----
+    pos_comp_pose_m = None
+    if cfg.get("ENABLE_TILT_COMP", True):
+        pos_comp_pose_m = compensate_positions_absolute(
+            pos_noimu_EN_m=pos_noimu_m,
+            roll_rad_series=roll_pose,
+            pitch_rad_series=pitch_pose,
+            altitude_m=float(cfg.get("ALTITUDE_M", 100.0)),
+            sign_roll_to_E=float(cfg.get("COMP_SIGN_ROLL_TO_E", +1.0)),
+            sign_pitch_to_N=float(cfg.get("COMP_SIGN_PITCH_TO_N", +1.0)),
+        )
 
-        roll_step  = roll_pose[1:] if roll_pose is not None else np.zeros_like(dE)
-        pitch_step = pitch_pose[1:] if pitch_pose is not None else np.zeros_like(dN)
+        # Convert to lat/lon using same origin
+        if (gps_lat0 is not None) and (gps_lon0 is not None):
+            lat_comp, lon_comp = en_to_latlon(
+                gps_lat0, gps_lon0,
+                dE=pos_comp_pose_m[:, 0],
+                dN=pos_comp_pose_m[:, 1],
+            )
+        else:
+            lat_comp = lon_comp = None
 
-        h = float(cfg.get("ALTITUDE_M", 100.0))  # constant altitude for now
+        # Plot overlay
+        import matplotlib.pyplot as plt
+        plt.figure(); plt.grid(True)
+        plt.title("VO (IMU-compensated, abs 0 ref) vs GPS")
+        plt.xlabel("Longitude"); plt.ylabel("Latitude")
+        if lat_comp is not None and lon_comp is not None:
+            plt.plot(lon_comp, lat_comp, '-', label="VO (IMU-comp)")
+        else:
+            plt.xlabel("East (m)"); plt.ylabel("North (m)")
+            plt.plot(pos_comp_pose_m[:, 0], pos_comp_pose_m[:, 1], '-', label="VO (IMU-comp)")
+        if (lat_pose is not None) and (lon_pose is not None):
+            plt.plot(lon_pose, lat_pose, '.', ms=3, alpha=0.9, label="GPS (synced)")
+        plt.axis('equal'); plt.legend(); plt.tight_layout()
+        plt.savefig(cfg["vo_metric_with_imu_png"], dpi=150); plt.close()
+        print(f"🧭 VO (IMU-compensated, abs 0 ref) saved: {cfg['vo_metric_with_imu_png']}")
 
-        dE_c, dN_c = compensate_tilt(dE, dN, roll_step, pitch_step, h)
-        pos_withimu_m = integrate_steps(dE_c, dN_c)
+    # Legacy compatibility - keep pos_withimu_m for existing code
+    pos_withimu_m = pos_comp_pose_m
 
     # ---- 10) Plots ----
     # quick sanity IMU plots

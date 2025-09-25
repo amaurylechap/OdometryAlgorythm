@@ -1,50 +1,43 @@
-"""
-IMU tilt compensation utilities.
-
-Corrects false apparent translations caused by camera tilt
-using a simple altitude·tan() projection model.
-"""
-
+# imu_compensation.py
 import numpy as np
 
-
-def compensate_tilt(dE, dN, roll_rad, pitch_rad, altitude_m):
+def compensate_positions_absolute(
+    pos_noimu_EN_m,
+    roll_rad_series,
+    pitch_rad_series,
+    altitude_m,
+    sign_roll_to_E=+1.0,
+    sign_pitch_to_N=+1.0,
+):
     """
-    Apply tilt compensation to VO per-step displacements.
+    Apply per-pose tilt compensation relative to absolute level (0 roll, 0 pitch).
+
+    For each pose i:
+        pos_comp[i] = pos_noimu[i] - ( h * tan(roll_i), h * tan(pitch_i) )
 
     Parameters
     ----------
-    dE, dN : np.ndarray
-        VO-estimated translations per step (East, North) in meters.
-    roll_rad, pitch_rad : np.ndarray
-        Roll and pitch angles at each step [radians].
-        Must be same length as dE, dN.
+    pos_noimu_EN_m : (N,2) array
+        VO baseline positions in meters [E, N] (uncompensated).
+    roll_rad_series, pitch_rad_series : (N,) arrays
+        Roll and pitch in radians at each pose time.
     altitude_m : float
-        Altitude above ground [meters].
+        Altitude above ground in meters (constant for now).
+    sign_roll_to_E, sign_pitch_to_N : float
+        Axis sign mapping (+1/-1) to match conventions.
 
     Returns
     -------
-    dE_c, dN_c : np.ndarray
-        Corrected per-step translations (E, N).
+    pos_comp_EN_m : (N,2) array
+        Per-pose compensated positions in meters [E, N].
     """
-    roll_rad = np.asarray(roll_rad, dtype=float)
-    pitch_rad = np.asarray(pitch_rad, dtype=float)
+    P = np.asarray(pos_noimu_EN_m, dtype=float)
+    r = np.asarray(roll_rad_series, dtype=float)
+    p = np.asarray(pitch_rad_series, dtype=float)
 
-    # Apparent false displacements due to tilt
-    false_E = altitude_m * np.tan(roll_rad)
-    false_N = altitude_m * np.tan(pitch_rad)
+    CE = sign_roll_to_E  * altitude_m * np.tan(r)  # East component
+    CN = sign_pitch_to_N * altitude_m * np.tan(p)  # North component
 
-    # Subtract them from VO estimates
-    dE_c = dE - false_E
-    dN_c = dN - false_N
-    return dE_c, dN_c
-
-
-def integrate_steps(dE_c, dN_c):
-    """
-    Integrate per-step displacements into cumulative trajectory.
-    """
-    pos = np.zeros((len(dE_c) + 1, 2), dtype=np.float32)
-    pos[1:, 0] = np.cumsum(dE_c)
-    pos[1:, 1] = np.cumsum(dN_c)
-    return pos
+    C = np.column_stack([CE, CN])     # shape (N,2)
+    P_comp = P - C
+    return P_comp
