@@ -13,6 +13,7 @@ from visualization import (
     plot_vo_metric_no_imu, plot_vo_metric_with_imu
 )
 from csv_utils import load_frame_csv, load_imu_csv, en_to_latlon
+from imu_compensation import compensate_tilt, integrate_steps
 from config import CONFIG
 
 def main():
@@ -150,21 +151,20 @@ def main():
         ])
         pos_noimu_m = vo_rotated
 
-    # ---- 9) VO with simple IMU compensation (optional) ----
+    # ---- 9) VO with IMU tilt compensation (altitude · tan()) ----
     pos_withimu_m = None
     if len(pairs) >= 1:
         dpx = np.array([[row[2], row[3]] for row in pairs], dtype=np.float32)
         dE = dpx[:, 0] * sx
         dN = dpx[:, 1] * sy
-        # use pose angles (skip first step)
+
         roll_step  = roll_pose[1:] if roll_pose is not None else np.zeros_like(dE)
         pitch_step = pitch_pose[1:] if pitch_pose is not None else np.zeros_like(dN)
-        cosr = np.clip(np.cos(roll_step), 0.1, 1.0)
-        cosp = np.clip(np.cos(pitch_step), 0.1, 1.0)
-        dE_c = dE / cosr; dN_c = dN / cosp
-        pos_withimu_m = np.zeros((len(dE_c) + 1, 2), dtype=np.float32)
-        pos_withimu_m[1:, 0] = np.cumsum(dE_c)
-        pos_withimu_m[1:, 1] = np.cumsum(dN_c)
+
+        h = float(cfg.get("ALTITUDE_M", 100.0))  # constant altitude for now
+
+        dE_c, dN_c = compensate_tilt(dE, dN, roll_step, pitch_step, h)
+        pos_withimu_m = integrate_steps(dE_c, dN_c)
 
     # ---- 10) Plots ----
     # quick sanity IMU plots
