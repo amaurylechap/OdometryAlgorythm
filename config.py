@@ -14,13 +14,16 @@ CONFIG = {
     # ---- CSV paths (point these to your actual files) ----
     "PATH_IMU_CSV": "inputs/IMU_Timestamp.csv",        # epoch or parseable datetime; includes GPS
     "PATH_FRAME_CSV": "inputs/FrameId_Timestamp.csv",  # frame id (or filename), timestamp
-    "TIME_OFFSET_USER_S": 0.0,  # user tweak added to the auto offset
+    "TIME_OFFSET_USER_S": -5,  # user tweak added to the auto offset
 
     # ---- Frame/filename handling ----
     # Regex to extract frame index from filenames like 'frame_001234.jpg'
     "FRAME_FILENAME_REGEX": r"frame_(\d+)\.",
     # If True, filter the frame CSV down to only frames that exist in images_dir/pattern
     "CLIP_FRAME_CSV_TO_IMAGES": True,
+    
+    # ---- VO trajectory rotation ----
+    "VO_ROTATION_DEG": 5,  # User-defined rotation angle in degrees (0 = no rotation)
 
     # ---- Processing size for VO ----
     "PROCESS_SCALE": 0.5,        # 0.4–0.6 is fast & accurate

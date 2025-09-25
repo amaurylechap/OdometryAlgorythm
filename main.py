@@ -136,6 +136,20 @@ def main():
     Trel = Tpix - Tpix[0]
     pos_noimu_m = np.column_stack([Trel[:, 0] * sx, Trel[:, 1] * sy])
 
+    # ---- 8.5) Apply user-defined VO rotation (if specified) ----
+    vo_rotation_deg = cfg.get("VO_ROTATION_DEG", 0.0)
+    if vo_rotation_deg != 0.0:
+        print(f"🔄 Applying VO rotation: {vo_rotation_deg:.2f}°")
+        theta = np.deg2rad(vo_rotation_deg)
+        cos_theta, sin_theta = np.cos(theta), np.sin(theta)
+        
+        # Apply rotation to VO trajectory
+        vo_rotated = np.column_stack([
+            cos_theta * pos_noimu_m[:, 0] - sin_theta * pos_noimu_m[:, 1],
+            sin_theta * pos_noimu_m[:, 0] + cos_theta * pos_noimu_m[:, 1]
+        ])
+        pos_noimu_m = vo_rotated
+
     # ---- 9) VO with simple IMU compensation (optional) ----
     pos_withimu_m = None
     if len(pairs) >= 1:
