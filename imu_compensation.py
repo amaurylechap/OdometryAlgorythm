@@ -1,43 +1,49 @@
 # imu_compensation.py
 import numpy as np
 
-def compensate_positions_absolute(
+def compensate_positions_body_to_en(
     pos_noimu_EN_m,
     roll_rad_series,
     pitch_rad_series,
+    heading_rad_series,
     altitude_m,
-    sign_roll_to_E=+1.0,
-    sign_pitch_to_N=+1.0,
+    sign_roll_to_right=+1.0,
+    sign_pitch_to_fwd=-1.0,
 ):
     """
-    Apply per-pose tilt compensation relative to absolute level (0 roll, 0 pitch).
+    Per-pose (non-integrating) compensation built in the BODY frame, then rotated to EN.
 
-    For each pose i:
-        pos_comp[i] = pos_noimu[i] - ( h * tan(roll_i), h * tan(pitch_i) )
+    BODY axes: +Right (y_body), +Forward (x_body).
 
-    Parameters
-    ----------
-    pos_noimu_EN_m : (N,2) array
-        VO baseline positions in meters [E, N] (uncompensated).
-    roll_rad_series, pitch_rad_series : (N,) arrays
-        Roll and pitch in radians at each pose time.
-    altitude_m : float
-        Altitude above ground in meters (constant for now).
-    sign_roll_to_E, sign_pitch_to_N : float
-        Axis sign mapping (+1/-1) to match conventions.
+    For each pose i (absolute 0,0 attitude reference):
+        Right_i  = sign_roll_to_right * h * tan(roll_i)
+        Fwd_i    = sign_pitch_to_fwd * h * tan(pitch_i)
 
-    Returns
-    -------
-    pos_comp_EN_m : (N,2) array
-        Per-pose compensated positions in meters [E, N].
+    Rotate BODY->[N,E] using heading ψ_i:
+        [N;E] = [[cosψ, -sinψ],
+                 [sinψ,  cosψ]] @ [Fwd; Right]
+
+    Finally:
+        pos_comp_EN[i] = pos_noimu_EN[i] - [E_i, N_i]
     """
-    P = np.asarray(pos_noimu_EN_m, dtype=float)
-    r = np.asarray(roll_rad_series, dtype=float)
-    p = np.asarray(pitch_rad_series, dtype=float)
+    P_EN = np.asarray(pos_noimu_EN_m, dtype=float)
+    r    = np.asarray(roll_rad_series, dtype=float)
+    p    = np.asarray(pitch_rad_series, dtype=float)
+    psi  = np.asarray(heading_rad_series, dtype=float)
 
-    CE = sign_roll_to_E  * altitude_m * np.tan(r)  # East component
-    CN = sign_pitch_to_N * altitude_m * np.tan(p)  # North component
+    N = len(P_EN)
+    if N == 0:
+        return P_EN.copy()
 
-    C = np.column_stack([CE, CN])     # shape (N,2)
-    P_comp = P - C
-    return P_comp
+    # 1) Body-frame compensation components
+    right = sign_roll_to_right * altitude_m * np.tan(r)   # +Right
+    fwd   = sign_pitch_to_fwd * altitude_m * np.tan(p)    # +Forward
+
+    # 2) Rotate BODY->[N,E] via heading ψ
+    c = np.cos(psi); s = np.sin(psi)
+    N_comp = c * fwd + (-s) * right
+    E_comp = s * fwd +  c   * right
+
+    # 3) Subtract EN compensation from VO baseline
+    C_EN = np.column_stack([E_comp, N_comp])  # [E, N]
+    return P_EN - C_EN

@@ -171,3 +171,19 @@ def en_to_latlon(lat0_deg, lon0_deg, dE, dN):
     dlon = dE / (R_EARTH * np.cos(lat0))
     lat = lat0 + dlat; lon = lon0 + dlon
     return np.rad2deg(lat), np.rad2deg(lon)
+
+
+def latlon_to_en(lat0_deg, lon0_deg, lat_deg, lon_deg):
+    """
+    Convert latitude/longitude to local East/North meters relative to (lat0, lon0).
+    Arrays or scalars supported.
+    """
+    lat0 = np.deg2rad(lat0_deg)
+    lon0 = np.deg2rad(lon0_deg)
+    lat  = np.deg2rad(lat_deg)
+    lon  = np.deg2rad(lon_deg)
+    dlat = lat - lat0
+    dlon = lon - lon0
+    dN = dlat * R_EARTH
+    dE = dlon * (R_EARTH * np.cos(lat0))
+    return np.asarray(dE, dtype=float), np.asarray(dN, dtype=float)
