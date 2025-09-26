@@ -1,0 +1,22 @@
+# Image frames - don't track these large files
+inputs/500_frames_set/*.pgm
+inputs/*/frame_*.pgm
+
+# Output files - generated content
+outputs/*.png
+outputs/*.pkl
+outputs/raw_data/
+outputs/debug/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
