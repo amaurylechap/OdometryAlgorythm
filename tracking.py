@@ -115,13 +115,13 @@ class AdaptiveParams:
             self.fast_thr *= float(self.cfg["adapt_down_factor"])
             self._clamp_fast()
             self.soften()
-            print(f"    ↘ adapting: FAST={int(self.fast_thr)}, LKwin={self.lk_win}, "
+            print(f"    adapting: FAST={int(self.fast_thr)}, LKwin={self.lk_win}, "
                   f"levels={self.lk_levels}, RANSAC={self.ransac_thr:.2f}")
         elif inliers > 1.3 * target:
             self.fast_thr *= float(self.cfg["adapt_up_factor"])
             self._clamp_fast()
             self.harden()
-            print(f"    ↗ relaxing: FAST={int(self.fast_thr)}, LKwin={self.lk_win}, "
+            print(f"    relaxing: FAST={int(self.fast_thr)}, LKwin={self.lk_win}, "
                   f"levels={self.lk_levels}, RANSAC={self.ransac_thr:.2f}")
         else:
             self.harden()

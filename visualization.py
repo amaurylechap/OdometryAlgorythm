@@ -177,7 +177,7 @@ def plot_vo_metric_with_imu(pos_withimu_m, gps_lat0, gps_lon0, imu_df, config, l
 
 
 def generate_mosaic(global_A, pose_frame_ids, paths, W0, H0, W_full, H_full, 
-                   dc, config):
+                   dc, config, traj_xy=None):
     """Generate mosaic from all frames."""
     if not config.get("ENABLE_MOSAIC", False):
         print("ℹ️ Mosaic disabled (ENABLE_MOSAIC=False).")
@@ -273,9 +273,59 @@ def generate_mosaic(global_A, pose_frame_ids, paths, W0, H0, W_full, H_full,
     print(f"\n🖼️ Mosaic saved: {config['mosaic_png']}")
     
     # overlay simple traj
-    traj_px = (np.array([], dtype=np.float32) + offset) * r  # This needs traj_xy data
-    pts = traj_px.astype(np.int32).reshape(-1, 1, 2)
-    canvas_traj = canvas.copy()
-    cv2.polylines(canvas_traj, [pts], isClosed=False, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
-    cv2.imwrite(config["mosaic_with_traj_png"], canvas_traj)
-    print(f"🖼️ Mosaic + Trajectory saved: {config['mosaic_with_traj_png']}")
+    if traj_xy is not None and len(traj_xy) > 0:
+        traj_xy = np.array(traj_xy, dtype=np.float32)
+        traj_px = (traj_xy + offset) * r
+        pts = traj_px.astype(np.int32).reshape(-1, 1, 2)
+        canvas_traj = canvas.copy()
+        cv2.polylines(canvas_traj, [pts], isClosed=False, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+        cv2.imwrite(config["mosaic_with_traj_png"], canvas_traj)
+        print(f"🖼️ Mosaic + Trajectory saved: {config['mosaic_with_traj_png']}")
+    else:
+        print("⚠️ No trajectory data available for mosaic overlay")
+
+
+def plot_plane_series(time_rel, frame_nums,
+                      fwd_vo_cum, lat_vo_cum, vo_heading_cum_deg,
+                      t_step_time, step_frame_nums,
+                      fwd_gps_cum=None, lat_gps_cum=None, gps_heading_cum_deg=None,
+                      lat_vo_imu_cum=None,
+                      out_png="outputs/plane_series.png"):
+    """
+    Plot aircraft-frame trajectories:
+      - Forward (cumulative, meters)
+      - Lateral (cumulative, meters)
+      - Heading (cumulative, degrees)
+    VO is required; GPS overlays if provided.
+    """
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(13, 9))
+
+    # 1) Forward cumulative
+    ax1 = plt.subplot(3, 1, 1)
+    ax1.plot(time_rel, fwd_vo_cum, label="VO forward [m]", linewidth=2)
+    if fwd_gps_cum is not None:
+        ax1.plot(time_rel, fwd_gps_cum, label="GPS forward [m]", linewidth=2, alpha=0.9)
+    ax1.set_ylabel("Forward [m]"); ax1.grid(True); ax1.legend(loc="best")
+
+    # 2) Lateral cumulative
+    ax2 = plt.subplot(3, 1, 2, sharex=ax1)
+    ax2.plot(time_rel, lat_vo_cum, label="VO (no IMU) lateral [m]", linewidth=2)
+    if lat_vo_imu_cum is not None:
+        ax2.plot(time_rel, lat_vo_imu_cum, label="VO (IMU) lateral [m]", linewidth=2, alpha=0.8, color='green')
+    if lat_gps_cum is not None:
+        ax2.plot(time_rel, lat_gps_cum, label="GPS lateral [m]", linewidth=2, alpha=0.9)
+    ax2.set_ylabel("Lateral [m]"); ax2.grid(True); ax2.legend(loc="best")
+
+    # 3) Cumulative heading
+    ax3 = plt.subplot(3, 1, 3, sharex=ax1)
+    ax3.plot(time_rel, vo_heading_cum_deg, label="VO heading [deg]", linewidth=2)
+    if gps_heading_cum_deg is not None:
+        ax3.plot(time_rel, gps_heading_cum_deg, label="GPS heading [deg]", linewidth=2, alpha=0.9)
+    ax3.set_xlabel("Time since start [s]"); ax3.set_ylabel("Heading [deg]")
+    ax3.grid(True); ax3.legend(loc="best")
+
+    plt.tight_layout()
+    plt.savefig(out_png, dpi=150)
+    plt.close()
+    print(f"Plane-frame series plot saved: {out_png}")
