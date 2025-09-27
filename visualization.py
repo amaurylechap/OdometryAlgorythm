@@ -183,10 +183,14 @@ def generate_mosaic(global_A, pose_frame_ids, paths, W0, H0, W_full, H_full,
         print("ℹ️ Mosaic disabled (ENABLE_MOSAIC=False).")
         return
     
-    # Canvas bounds in I0 coords
+    # Apply stride to reduce memory usage
+    stride = max(1, int(config.get("MOSAIC_STRIDE", 1)))
+    render_indices = list(range(0, len(global_A), stride))
+    
+    # Canvas bounds in I0 coords (using only strided frames)
     W0_plot, H0_plot = W0, H0
     cs = corners(W0_plot, H0_plot)
-    warped_corners = [cv2.transform(cs, A).reshape(-1, 2) for A in global_A]
+    warped_corners = [cv2.transform(cs, global_A[i]).reshape(-1, 2) for i in render_indices]
     allc = np.vstack(warped_corners)
     minx, miny = np.floor(allc.min(axis=0)).astype(int)
     maxx, maxy = np.ceil(allc.max(axis=0)).astype(int)
@@ -200,15 +204,13 @@ def generate_mosaic(global_A, pose_frame_ids, paths, W0, H0, W_full, H_full,
     CH_r = int(max(1, round(CH * r)))
     S = np.array([[r, 0, 0], [0, r, 0], [0, 0, 1]], dtype=np.float32)
     mode = config.get("MOSAIC_MODE", "image").lower().strip()
-    stride = max(1, int(config.get("MOSAIC_STRIDE", 1)))
     alpha = float(config["alpha"])
     canvas = np.zeros((CH_r, CW_r, 3), dtype=np.uint8)
     
-    render_indices = list(range(0, len(global_A), stride))
     prog = progress_wrapper(render_indices, total=len(render_indices), desc="Mosaic")
     
     try:
-        for j in prog:
+        for i, j in enumerate(prog):
             idx_path = pose_frame_ids[j]
             if idx_path < 0 or idx_path >= len(paths):
                 print(f"⚠️ Mosaic skip: invalid path index {idx_path} for pose {j}")

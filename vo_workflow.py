@@ -96,13 +96,14 @@ class VOWorkflow:
         
         print("🎨 Generating outputs...")
         
-        # Generate mosaic
+        # Generate mosaic using smart memory-efficient method
         if config.CONFIG.get("ENABLE_MOSAIC", False):
-            print("📸 Creating mosaic...")
-            generate_mosaic(self.vo_data['global_A'], self.vo_data['pose_frame_ids'], 
-                          self.vo_data['paths'], self.vo_data['W0'], self.vo_data['H0'],
-                          self.vo_data['W_full'], self.vo_data['H_full'], self.vo_data['dc'],
-                          config.CONFIG, self.vo_data['traj_xy'])
+            print("📸 Creating smart mosaic...")
+            from smart_mosaic import smart_mosaic_generator
+            smart_mosaic_generator(self.vo_data['global_A'], self.vo_data['pose_frame_ids'], 
+                                  self.vo_data['paths'], self.vo_data['W0'], self.vo_data['H0'],
+                                  self.vo_data['W_full'], self.vo_data['H_full'], self.vo_data['dc'],
+                                  config.CONFIG, self.vo_data['traj_xy'])
         
         # Generate plots
         print("📊 Creating trajectory plot...")
