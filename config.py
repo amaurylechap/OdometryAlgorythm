@@ -132,7 +132,7 @@ CONFIG = {
         # Mosaic on (choose your mode/stride as you like)
         "ENABLE_MOSAIC": True,
     "MOSAIC_MODE": "thumbnail",              # "outline" | "thumbnail" | "image"
-    "MOSAIC_RENDER_SCALE": 0.1,
+    "MOSAIC_RENDER_SCALE": 0.5,
     "MOSAIC_STRIDE": 5,
     "mosaic_png": "outputs/mosaic.png",      # (used by generate_mosaic)
     "mosaic_with_traj_png": "outputs/mosaic_traj.png",

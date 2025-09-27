@@ -157,12 +157,12 @@ def smart_mosaic_generator(global_A, pose_frame_ids, paths, W0, H0, W_full, H_fu
                         img_src = img_proc
                         A_can_r_adj = A_can_r
                     
-                    # Warp image with same parameters as original
+                    # Warp image with black borders to avoid noise
                     warped = cv2.warpAffine(img_src, A_can_r_adj, (CW_r, CH_r),
-                                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_TRANSPARENT)
+                                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                     
-                    # Blend with canvas
-                    mask = (warped.sum(axis=2) > 0)
+                    # Create proper mask for valid image content (avoid black borders)
+                    mask = (warped.sum(axis=2) > 10)  # Threshold to avoid near-black pixels
                     if np.any(mask):
                         for c in range(3):
                             canvas[:, :, c] = np.where(mask, 
@@ -178,12 +178,12 @@ def smart_mosaic_generator(global_A, pose_frame_ids, paths, W0, H0, W_full, H_fu
                     # Resize to W0, H0 if needed (same as original)
                     img_proc = cv2.resize(img_full, (W0_plot, H0_plot), interpolation=cv2.INTER_AREA) if (W0_plot != W_full or H0_plot != H_full) else img_full
                     
-                    # Warp image with same parameters as original
+                    # Warp image with black borders to avoid noise
                     warped = cv2.warpAffine(img_proc, A_can_r, (CW_r, CH_r),
-                                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_TRANSPARENT)
+                                          flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                     
-                    # Blend with canvas
-                    mask = (warped.sum(axis=2) > 0)
+                    # Create proper mask for valid image content (avoid black borders)
+                    mask = (warped.sum(axis=2) > 10)  # Threshold to avoid near-black pixels
                     if np.any(mask):
                         for c in range(3):
                             canvas[:, :, c] = np.where(mask, 
@@ -210,7 +210,7 @@ def smart_mosaic_generator(global_A, pose_frame_ids, paths, W0, H0, W_full, H_fu
             pts = traj_px.astype(np.int32).reshape(-1, 1, 2)
             
             canvas_traj = canvas.copy()
-            cv2.polylines(canvas_traj, [pts], isClosed=False, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+            cv2.polylines(canvas_traj, [pts], isClosed=False, color=(0, 255, 0), thickness=1, lineType=cv2.LINE_AA)
             
             traj_path_out = config.get("mosaic_with_traj_png", "outputs/mosaic_traj.png")
             cv2.imwrite(traj_path_out, canvas_traj)
